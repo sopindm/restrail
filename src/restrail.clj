@@ -1,7 +1,7 @@
 (ns restrail
   (:gen-class :main true)
   (:require [clojure.repl]
-            [clojure.data.json :as json]
+            [clojure.data.json :as jsoon]
             [clojure.string :as str]
             [aleph.http :as http]))
 
@@ -33,6 +33,18 @@
                                   :key-fn keyword->camel
                                   :escape-unicode false)))
 
+(def ^:dynamic *bindings* (atom {}))
+
+(defn inject-bindings [json]
+  (cond (map? json) (into {} (map (fn [[k v]] [k (inject-bindings v)]) json))
+        (sequential? json) (map inject-bindings json)
+        :else (if (and (string? json) (.startsWith json "$"))
+                (get @*bindings* (.substring json 1))
+                json)))
+
+(defn- write-request [json]
+  (write-json (inject-bindings json)))
+
 (defn- read-response [body]
   (-> (java.nio.charset.Charset/defaultCharset)
       (.decode (java.nio.ByteBuffer/wrap (.array body)))
@@ -52,8 +64,6 @@
                            
 (defn- json-seq= [s1 s2]
   (and (= (count s1) (count s2)) (every? (fn [[x y]] (json= x y)) (map vector s1 s2))))
-
-(def ^:dynamic *bindings* (atom {}))
 
 (defn- push-binding [got expected]
   (swap! *bindings* #(assoc % (.substring expected 1) got)))
@@ -81,7 +91,7 @@
         {:keys [url method body]} request]
     (let [{:keys [status body]} (http/sync-http-request {:method (http-method method)
                                                          :url (str server-url url)
-                                                         :body (write-json body)})]
+                                                         :body (write-request body)})]
       (if (not= status 200)
         [:failure (format "Error: wrong result status %s on %s" status (write-json request))]
         (check-response (read-response body) response)))))
