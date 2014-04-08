@@ -1,0 +1,14 @@
+{"request": {"url": "/games/create",
+             "method": "POST",
+             "body": {"slots": 10}},
+ "response": {"status": "OK", "gameId": "?game"}}
+             
+{"request": {"url": "/games/list",
+             "method": "GET"}
+ "response": {"status": "OK",
+              "games": [{"id": "!game",
+                         "name": "",
+                         "freeSlots": 10,
+                         "totalSlots": 10}]}}
+ 
+             
